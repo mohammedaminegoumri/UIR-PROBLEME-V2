@@ -9,3 +9,7 @@ cmds = ["npm run build"]
 
 [start]
 cmd = "node server/server.js"
+
+# ← This is the important line that stops Caddy
+[env]
+NIXPACKS_SPA_CADDY = "false"
