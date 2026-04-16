@@ -110,7 +110,7 @@ const updateCrushVotes = db.prepare(`UPDATE crushes SET votes = votes + ? WHERE 
 const updateProblemComments = db.prepare(`UPDATE problems SET comments = ? WHERE id = ?`);
 const updateCrushComments = db.prepare(`UPDATE crushes SET comments = ? WHERE id = ?`);
 
-// REST API Endpoints
+// === ALL YOUR API ROUTES (unchanged) ===
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/api/problems', (req, res) => {
   const problems = db.prepare('SELECT * FROM problems ORDER BY timestamp DESC').all();
@@ -259,13 +259,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// === SERVE REACT FRONTEND ON RAILWAY (PRODUCTION) ===
+// === SERVE REACT FRONTEND ON RAILWAY (FIXED) ===
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 if (isProduction) {
   const distPath = join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  app.get('*', (req, res) => {
+  // FIXED: Use '/*' instead of '*' (this was crashing the server)
+  app.get('/*', (req, res) => {
     if (!req.path.startsWith('/api')) {
       res.sendFile(join(distPath, 'index.html'));
     }
@@ -275,5 +276,5 @@ if (isProduction) {
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
