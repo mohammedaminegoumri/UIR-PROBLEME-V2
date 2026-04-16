@@ -9,6 +9,7 @@
     "client": "vite",
     "build": "vite build",
     "preview": "vite preview"
+    "start": "node server/server.js",
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
