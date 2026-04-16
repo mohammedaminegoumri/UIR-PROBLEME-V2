@@ -413,6 +413,20 @@ if (isProduction) {
     res.sendFile(join(distPath, 'index.html'));
   });
 }
+// === SERVE REACT FRONTEND ON RAILWAY ===
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+if (isProduction) {
+  const distPath = join(__dirname, '../dist');
+  app.use(express.static(distPath));
+
+  // Catch-all for React Router
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(join(distPath, 'index.html'));
+    }
+  });
+}
+// ======================================
 // ======================================================
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
