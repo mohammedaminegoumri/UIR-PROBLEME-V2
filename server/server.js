@@ -110,24 +110,34 @@ const updateCrushVotes = db.prepare(`UPDATE crushes SET votes = votes + ? WHERE 
 const updateProblemComments = db.prepare(`UPDATE problems SET comments = ? WHERE id = ?`);
 const updateCrushComments = db.prepare(`UPDATE crushes SET comments = ? WHERE id = ?`);
 
-// === ALL YOUR API ROUTES (unchanged) ===
+// REST API Endpoints
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
 app.get('/api/problems', (req, res) => {
   const problems = db.prepare('SELECT * FROM problems ORDER BY timestamp DESC').all();
-  res.json(problems.map(p => ({ ...p, anonymous: Boolean(p.anonymous), comments: JSON.parse(p.comments) })));
+  res.json(problems.map(p => ({
+    ...p,
+    anonymous: Boolean(p.anonymous),
+    comments: JSON.parse(p.comments)
+  })));
 });
+
 app.get('/api/crushes', (req, res) => {
   const crushes = db.prepare('SELECT * FROM crushes ORDER BY timestamp DESC').all();
   res.json(crushes.map(c => ({ ...c, comments: JSON.parse(c.comments) })));
 });
+
 app.get('/api/chat-rooms', (req, res) => {
   const rooms = db.prepare('SELECT * FROM chat_rooms ORDER BY createdAt DESC').all();
   res.json(rooms);
 });
+
 app.get('/api/chat-messages/:roomId', (req, res) => {
-  const messages = db.prepare('SELECT * FROM chat_messages WHERE roomId = ? ORDER BY timestamp ASC').all(req.params.roomId);
+  const messages = db.prepare('SELECT * FROM chat_messages WHERE roomId = ? ORDER BY timestamp ASC')
+    .all(req.params.roomId);
   res.json(messages);
 });
+
 app.post('/api/problems', (req, res) => {
   const { category, title, description, anonymous, authorName } = req.body;
   const id = uuidv4();
@@ -137,6 +147,7 @@ app.post('/api/problems', (req, res) => {
   io.emit('new-problem', problem);
   res.json(problem);
 });
+
 app.post('/api/crushes', (req, res) => {
   const { gender, name, age, major, year, description, photo, contactInfo } = req.body;
   const id = uuidv4();
@@ -146,6 +157,7 @@ app.post('/api/crushes', (req, res) => {
   io.emit('new-crush', crush);
   res.json(crush);
 });
+
 app.post('/api/chat-rooms', (req, res) => {
   const { name } = req.body;
   const id = uuidv4();
@@ -155,10 +167,12 @@ app.post('/api/chat-rooms', (req, res) => {
   io.emit('new-room', room);
   res.json(room);
 });
+
 app.get('/api/forum-threads', (req, res) => {
   const threads = db.prepare('SELECT * FROM forum_threads ORDER BY timestamp DESC').all();
   res.json(threads.map(t => ({ ...t, replies: JSON.parse(t.replies) })));
 });
+
 app.post('/api/forum-threads', (req, res) => {
   const { category, subcategory, title, content, author } = req.body;
   const id = uuidv4();
@@ -168,12 +182,14 @@ app.post('/api/forum-threads', (req, res) => {
   io.emit('new-forum-thread', thread);
   res.json(thread);
 });
+
 app.post('/api/forum-threads/:id/like', (req, res) => {
   db.prepare('UPDATE forum_threads SET likes = likes + 1 WHERE id = ?').run(req.params.id);
   const thread = db.prepare('SELECT likes FROM forum_threads WHERE id = ?').get(req.params.id);
   io.emit('forum-thread-liked', { id: req.params.id, likes: thread.likes });
   res.json({ likes: thread.likes });
 });
+
 app.post('/api/forum-threads/:id/reply', (req, res) => {
   const { content, author } = req.body;
   const thread = db.prepare('SELECT * FROM forum_threads WHERE id = ?').get(req.params.id);
@@ -185,6 +201,7 @@ app.post('/api/forum-threads/:id/reply', (req, res) => {
   io.emit('forum-reply-added', { threadId: req.params.id, reply: newReply });
   res.json(newReply);
 });
+
 app.post('/api/problems/:id/vote', (req, res) => {
   const { delta } = req.body;
   updateProblemVotes.run(delta, req.params.id);
@@ -192,6 +209,7 @@ app.post('/api/problems/:id/vote', (req, res) => {
   io.emit('problem-voted', { id: req.params.id, votes: problem.votes });
   res.json({ votes: problem.votes });
 });
+
 app.post('/api/crushes/:id/vote', (req, res) => {
   const { delta } = req.body;
   updateCrushVotes.run(delta, req.params.id);
@@ -199,6 +217,7 @@ app.post('/api/crushes/:id/vote', (req, res) => {
   io.emit('crush-voted', { id: req.params.id, votes: crush.votes });
   res.json({ votes: crush.votes });
 });
+
 app.post('/api/problems/:id/comment', (req, res) => {
   const { text, author, anonymous } = req.body;
   const problem = db.prepare('SELECT * FROM problems WHERE id = ?').get(req.params.id);
@@ -210,6 +229,7 @@ app.post('/api/problems/:id/comment', (req, res) => {
   io.emit('problem-commented', { problemId: req.params.id, comment: newComment });
   res.json(newComment);
 });
+
 app.post('/api/crushes/:id/comment', (req, res) => {
   const { text, author, anonymous } = req.body;
   const crush = db.prepare('SELECT * FROM crushes WHERE id = ?').get(req.params.id);
@@ -259,17 +279,18 @@ io.on('connection', (socket) => {
   });
 });
 
-// === SERVE REACT FRONTEND ON RAILWAY (FIXED) ===
+// === FIXED SPA FALLBACK FOR EXPRESS 5 (this fixes the PathError) ===
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 if (isProduction) {
   const distPath = join(__dirname, '../dist');
   app.use(express.static(distPath));
 
-  // FIXED: Use '/*' instead of '*' (this was crashing the server)
-  app.get('/*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(join(distPath, 'index.html'));
+  // Correct middleware for Express 5 (no more '*' or '/*' error)
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
     }
+    res.sendFile(join(distPath, 'index.html'));
   });
 }
 // ======================================================
