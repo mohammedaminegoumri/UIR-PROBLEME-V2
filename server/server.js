@@ -1,3 +1,4 @@
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -398,7 +399,21 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
+// === ADD THIS BLOCK FOR PRODUCTION FRONTEND SERVING ===
+import { join } from 'path';   // (already at the top, just make sure)
 
+// Serve static React build files
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT === 'production';
+if (isProduction) {
+  const distPath = join(__dirname, '../dist');
+  app.use(express.static(distPath));
+
+  // Important: Catch-all route for React Router (SPA)
+  app.get('*', (req, res) => {
+    res.sendFile(join(distPath, 'index.html'));
+  });
+}
+// ======================================================
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
