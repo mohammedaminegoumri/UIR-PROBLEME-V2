@@ -14,7 +14,43 @@ import {
 import { db } from "../firebase";
 
 // ================== CHAT ==================
-export const chatService = { ... }; // (on garde le chat tel quel)
+export const chatService = {
+  subscribeToRoom: (roomId: string, callback: (messages: any[]) => void) => {
+    const q = query(collection(db, "chatRooms", roomId, "messages"), orderBy("timestamp"));
+    return onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      callback(messages);
+    });
+  },
+
+  sendMessage: async (roomId: string, username: string, message: string) => {
+    await addDoc(collection(db, "chatRooms", roomId, "messages"), {
+      username,
+      message,
+      timestamp: serverTimestamp()
+    });
+  },
+
+  createRoom: async (name: string) => {
+    const docRef = await addDoc(collection(db, "chatRooms"), {
+      name,
+      createdAt: serverTimestamp()
+    });
+    return docRef.id;
+  },
+
+  getRooms: async () => {
+    const q = query(collection(db, "chatRooms"), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  }
+};
 
 // ================== PROBLEMS + COMMENTAIRES ==================
 export const problemService = {
@@ -76,7 +112,7 @@ export const crushService = {
   }
 };
 
-// ================== FORUM + COMMENTAIRES (replies) ==================
+// ================== FORUM + REPLIES ==================
 export const forumService = {
   getThreads: async () => {
     const q = query(collection(db, "forumThreads"), orderBy("timestamp", "desc"));
