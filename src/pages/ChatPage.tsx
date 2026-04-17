@@ -33,7 +33,6 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Popular emojis
   const emojis = ['😀', '😂', '❤️', '👍', '👋', '🎉', '🔥', '🙌', '😍', '🥳', '😎', '🙄', '😢', '😡', '🚀'];
 
   useEffect(() => {
@@ -42,7 +41,6 @@ const ChatPage = () => {
     const socket = apiService.initSocket();
 
     socket.on('new-room', (room: ChatRoom) => setRooms(prev => [room, ...prev]));
-    socket.on('room-joined', () => setIsJoined(true));
     socket.on('user-joined', ({ users }: { users: string[] }) => setActiveUsers(users));
     socket.on('user-left', ({ users }: { users: string[] }) => setActiveUsers(users));
     socket.on('receive-message', (message: Message) => {
@@ -54,9 +52,7 @@ const ChatPage = () => {
       if (!typingUsers.includes(typingUser)) {
         setTypingUsers(prev => [...prev, typingUser]);
       }
-      setTimeout(() => {
-        setTypingUsers(prev => prev.filter(u => u !== typingUser));
-      }, 3000);
+      setTimeout(() => setTypingUsers(prev => prev.filter(u => u !== typingUser)), 3000);
     });
 
     return () => socket.disconnect();
@@ -96,6 +92,8 @@ const ChatPage = () => {
       alert('Please enter a username first');
       return;
     }
+
+    // Leave previous room if any
     if (activeRoom) {
       const socket = apiService.getSocket();
       socket?.emit('leave-room', { roomId: activeRoom, username });
@@ -103,15 +101,18 @@ const ChatPage = () => {
 
     setActiveRoom(roomId);
     setMessages([]);
-    setIsJoined(false);
+    setIsJoined(true);                    // ← INSTANT JOIN (fixed the stuck issue)
+    setActiveUsers([]);
 
     try {
       const messagesData = await apiService.getChatMessages(roomId);
       setMessages(messagesData);
+
       const socket = apiService.getSocket();
       socket?.emit('join-room', { roomId, username });
     } catch (error) {
       console.error('Failed to join room:', error);
+      setIsJoined(false);
     }
   };
 
@@ -140,7 +141,6 @@ const ChatPage = () => {
 
   const insertEmoji = (emoji: string) => {
     setMessageText(prev => prev + emoji);
-    // Keep focus on input
     setTimeout(() => document.getElementById('message-input')?.focus(), 10);
   };
 
@@ -149,7 +149,7 @@ const ChatPage = () => {
   return (
     <div className="max-w-7xl mx-auto h-screen flex flex-col bg-gray-50">
       <div className="flex-1 flex overflow-hidden rounded-2xl shadow-2xl border border-gray-200 bg-white">
-        {/* Sidebar - Rooms */}
+        {/* Sidebar */}
         <div className="w-72 border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b">
             <button
@@ -177,7 +177,6 @@ const ChatPage = () => {
             )}
           </div>
 
-          {/* Username input */}
           {!username && (
             <div className="p-4 border-b bg-amber-50">
               <input
@@ -190,7 +189,6 @@ const ChatPage = () => {
             </div>
           )}
 
-          {/* Room list */}
           <div className="flex-1 overflow-y-auto">
             {rooms.map((room) => (
               <button
@@ -210,11 +208,10 @@ const ChatPage = () => {
           </div>
         </div>
 
-        {/* Main Chat Area */}
+        {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           {activeRoom && activeRoomData ? (
             <>
-              {/* Header */}
               <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
                 <div>
                   <h2 className="font-bold text-xl text-gray-900">{activeRoomData.name}</h2>
@@ -228,7 +225,6 @@ const ChatPage = () => {
                 </div>
               </div>
 
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50">
                 {messages.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-gray-400">
@@ -258,22 +254,17 @@ const ChatPage = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Typing indicator */}
               {typingUsers.length > 0 && (
                 <div className="px-6 py-1 text-sm text-gray-500 italic">
                   {typingUsers.filter(u => u !== username).join(', ')} typing...
                 </div>
               )}
 
-              {/* Message Input */}
               <div className="p-4 border-t bg-white">
                 {!username ? (
                   <p className="text-center text-gray-500 py-3">Enter your pseudonym above to chat</p>
-                ) : !isJoined ? (
-                  <p className="text-center text-gray-500 py-3">Joining room...</p>
                 ) : (
                   <form onSubmit={handleSendMessage} className="flex items-center gap-2 relative">
-                    {/* Emoji Button */}
                     <button
                       type="button"
                       onClick={() => setShowEmojiPicker(!showEmojiPicker)}
@@ -282,7 +273,6 @@ const ChatPage = () => {
                       <Smile size={26} className="text-gray-500" />
                     </button>
 
-                    {/* Emoji Picker */}
                     {showEmojiPicker && (
                       <div className="absolute bottom-16 left-4 bg-white border border-gray-200 shadow-xl rounded-2xl p-3 grid grid-cols-6 gap-2 z-50">
                         {emojis.map((emoji) => (
