@@ -6,13 +6,15 @@ import {
   query, 
   orderBy, 
   onSnapshot,
-  serverTimestamp 
+  serverTimestamp,
+  updateDoc,
+  doc,
+  arrayUnion
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-// ================== CHAT ==================
+// ================== CHAT (déjà fonctionnel) ==================
 export const chatService = {
-  // Écouter les messages en temps réel
   subscribeToRoom: (roomId: string, callback: (messages: any[]) => void) => {
     const q = query(collection(db, "chatRooms", roomId, "messages"), orderBy("timestamp"));
     return onSnapshot(q, (snapshot) => {
@@ -24,7 +26,6 @@ export const chatService = {
     });
   },
 
-  // Envoyer un message
   sendMessage: async (roomId: string, username: string, message: string) => {
     await addDoc(collection(db, "chatRooms", roomId, "messages"), {
       username,
@@ -33,7 +34,6 @@ export const chatService = {
     });
   },
 
-  // Créer une nouvelle room
   createRoom: async (name: string) => {
     const docRef = await addDoc(collection(db, "chatRooms"), {
       name,
@@ -42,7 +42,6 @@ export const chatService = {
     return docRef.id;
   },
 
-  // Récupérer toutes les rooms
   getRooms: async () => {
     const q = query(collection(db, "chatRooms"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
@@ -53,9 +52,57 @@ export const chatService = {
   }
 };
 
-// ================== AUTRES FONCTIONS (on les ajoutera plus tard) ==================
-export const problemService = {};   // à remplir plus tard
-export const crushService = {};     // à remplir plus tard
-export const forumService = {};     // à remplir plus tard
+// ================== PROBLEMS ==================
+export const problemService = {
+  getProblems: async () => {
+    const q = query(collection(db, "problems"), orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
 
-export default chatService;
+  createProblem: async (problem: any) => {
+    const docRef = await addDoc(collection(db, "problems"), {
+      ...problem,
+      timestamp: serverTimestamp()
+    });
+    return { id: docRef.id, ...problem };
+  }
+};
+
+// ================== CRUSHES ==================
+export const crushService = {
+  getCrushes: async () => {
+    const q = query(collection(db, "crushes"), orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+
+  createCrush: async (crush: any) => {
+    const docRef = await addDoc(collection(db, "crushes"), {
+      ...crush,
+      timestamp: serverTimestamp()
+    });
+    return { id: docRef.id, ...crush };
+  }
+};
+
+// ================== FORUM ==================
+export const forumService = {
+  getThreads: async () => {
+    const q = query(collection(db, "forumThreads"), orderBy("timestamp", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+
+  createThread: async (thread: any) => {
+    const docRef = await addDoc(collection(db, "forumThreads"), {
+      ...thread,
+      timestamp: serverTimestamp(),
+      likes: 0,
+      replies: []
+    });
+    return { id: docRef.id, ...thread };
+  }
+};
+
+export default { chatService, problemService, crushService, forumService };
