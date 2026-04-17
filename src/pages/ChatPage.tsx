@@ -58,12 +58,22 @@ const ChatPage = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Créer une nouvelle room
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
-    await chatService.createRoom(newRoomName.trim());
-    setNewRoomName('');
-    setShowNewRoomForm(false);
+
+    try {
+      await chatService.createRoom(newRoomName.trim());
+      setNewRoomName('');
+      setShowNewRoomForm(false);
+      // Recharger la liste des rooms
+      const updatedRooms = await chatService.getRooms();
+      setRooms(updatedRooms);
+    } catch (error) {
+      console.error("Erreur création room :", error);
+      alert("Impossible de créer la room. Vérifie ta connexion Firebase.");
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -94,6 +104,22 @@ const ChatPage = () => {
               <Plus size={20} />
               Nouvelle Room
             </button>
+
+            {showNewRoomForm && (
+              <form onSubmit={handleCreateRoom} className="mt-4 space-y-3">
+                <input
+                  type="text"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  placeholder="Nom de la room..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none"
+                />
+                <div className="flex gap-2">
+                  <button type="submit" className="flex-1 bg-green-600 text-white py-2 rounded-xl">Créer</button>
+                  <button type="button" onClick={() => setShowNewRoomForm(false)} className="flex-1 bg-gray-200 py-2 rounded-xl">Annuler</button>
+                </div>
+              </form>
+            )}
           </div>
 
           {!username && (
@@ -124,18 +150,18 @@ const ChatPage = () => {
                     activeRoom === room.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''
                   }`}
                 >
-                  <div className="font-semibold">{room.name}</div>
+                  {room.name}
                 </button>
               ))
             )}
           </div>
         </div>
 
-        {/* Chat Area */}
+        {/* Zone Chat */}
         <div className="flex-1 flex flex-col">
           {activeRoom && activeRoomData ? (
             <>
-              <div className="px-6 py-4 border-b bg-gray-50 flex justify-between">
+              <div className="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
                 <h2 className="font-bold text-xl">{activeRoomData.name}</h2>
                 <div className="text-blue-600">Toi : {username}</div>
               </div>
@@ -154,7 +180,7 @@ const ChatPage = () => {
                           {msg.timestamp?.toDate ? format(msg.timestamp.toDate(), 'HH:mm') : '??:??'}
                         </span>
                       </div>
-                      <p className="whitespace-pre-wrap">{msg.message}</p>
+                      <p>{msg.message}</p>
                     </div>
                   </div>
                 ))}
@@ -162,11 +188,7 @@ const ChatPage = () => {
               </div>
 
               <form onSubmit={handleSendMessage} className="p-4 border-t bg-white flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-3 hover:bg-gray-100 rounded-2xl"
-                >
+                <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-3 hover:bg-gray-100 rounded-2xl">
                   <Smile size={28} />
                 </button>
 
